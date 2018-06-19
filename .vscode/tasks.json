@@ -1,0 +1,15 @@
+{
+    "version": "2.0.0",
+    "tasks": [
+        {
+            "label": "build",
+            "command": "dotnet",
+            "type": "process",
+            "args": [
+                "build",
+                "${workspaceFolder}/src/ASP.NET-Core-GraphQl/ASP.NET-Core-GraphQl.csproj"
+            ],
+            "problemMatcher": "$msCompile"
+        }
+    ]
+}
