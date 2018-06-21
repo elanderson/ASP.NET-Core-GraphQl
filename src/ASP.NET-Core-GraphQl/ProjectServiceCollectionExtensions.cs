@@ -1,9 +1,9 @@
 namespace ASP.NET_Core_GraphQl
 {
+    using GraphQL.Server.Transports.WebSockets;
     using ASP.NET_Core_GraphQl.Repositories;
     using ASP.NET_Core_GraphQl.Schemas;
     using ASP.NET_Core_GraphQl.Types;
-    using GraphQL.Server.Transports.WebSockets;
     using Microsoft.Extensions.DependencyInjection;
 
     /// <summary>
@@ -41,9 +41,9 @@ namespace ASP.NET_Core_GraphQl
         /// </summary>
         public static IServiceCollection AddProjectGraphQLSchemas(this IServiceCollection services) =>
             services
-                .AddSingleton<RootQuery>()
-                .AddSingleton<RootMutation>()
-                .AddSingleton<RootSubscription>()
+                .AddSingleton<QueryObject>()
+                .AddSingleton<MutationObject>()
+                .AddSingleton<SubscriptionObject>()
                 .AddSingleton<MainSchema>()
                 .AddGraphQLWebSocket<MainSchema>();
     }

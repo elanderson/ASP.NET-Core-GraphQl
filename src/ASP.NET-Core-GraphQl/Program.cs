@@ -4,7 +4,9 @@ namespace ASP.NET_Core_GraphQl
     using System.IO;
     using System.Reflection;
     using Boxed.AspNetCore;
+    using ASP.NET_Core_GraphQl.Options;
     using Microsoft.AspNetCore.Hosting;
+    using Microsoft.AspNetCore.Server.Kestrel.Core;
     using Microsoft.Extensions.Configuration;
     using Microsoft.Extensions.DependencyInjection;
     using Serilog;
@@ -12,7 +14,7 @@ namespace ASP.NET_Core_GraphQl
 
     public sealed class Program
     {
-        public static int Main(string[] args) => LogAndRun(BuildWebHost(args));
+        public static int Main(string[] args) => LogAndRun(CreateWebHostBuilder(args).Build());
 
         public static int LogAndRun(IWebHost webHost)
         {
@@ -36,23 +38,34 @@ namespace ASP.NET_Core_GraphQl
             }
         }
 
-        public static IWebHost BuildWebHost(string[] args) =>
+        public static IWebHostBuilder CreateWebHostBuilder(string[] args) =>
             new WebHostBuilder()
+                .UseConfiguration(new ConfigurationBuilder().AddCommandLine(args).Build())
                 .UseKestrel(
-                    options =>
+                    (builderContext, options) =>
                     {
-                        options.AddServerHeader = false; // Do not add the Server HTTP header.
-                        options.ConfigureEndpoints();
+                        // Do not add the Server HTTP header.
+                        options.AddServerHeader = false;
+                        // Configure Kestrel from appsettings.json.
+                        options.Configure(builderContext.Configuration.GetSection(nameof(ApplicationOptions.Kestrel)));
+
+                        // Configuring Limits from appsettings.json is not supported. So we manually copy them from config.
+                        // See https://github.com/aspnet/KestrelHttpServer/issues/2216
+                        var kestrelOptions = builderContext.Configuration.GetSection<KestrelServerOptions>(nameof(ApplicationOptions.Kestrel));
+                        foreach (var property in typeof(KestrelServerLimits).GetProperties())
+                        {
+                            var value = property.GetValue(kestrelOptions.Limits);
+                            property.SetValue(options.Limits, value);
+                        }
                     })
                 .UseContentRoot(Directory.GetCurrentDirectory())
                 .ConfigureAppConfiguration((hostingContext, config) =>
                     AddConfiguration(config, hostingContext.HostingEnvironment, args))
+                .UseSerilog()
                 .UseIISIntegration()
                 .UseDefaultServiceProvider((context, options) =>
                     options.ValidateScopes = context.HostingEnvironment.IsDevelopment())
-                .UseSerilog()
-                .UseStartup<Startup>()
-                .Build();
+                .UseStartup<Startup>();
 
         private static IConfigurationBuilder AddConfiguration(
             IConfigurationBuilder configurationBuilder,

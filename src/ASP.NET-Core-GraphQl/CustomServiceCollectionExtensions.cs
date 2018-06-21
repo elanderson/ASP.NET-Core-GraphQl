@@ -1,8 +1,15 @@
 namespace ASP.NET_Core_GraphQl
 {
+    using System;
     using System.IO.Compression;
     using System.Linq;
+    using Boxed.AspNetCore;
     using CorrelationId;
+    using GraphQL;
+    using GraphQL.DataLoader;
+    using GraphQL.Server.Transports.AspNetCore;
+    using GraphQL.Server.Transports.Subscriptions.Abstractions;
+    using GraphQL.Types.Relay;
     using ASP.NET_Core_GraphQl.Constants;
     using ASP.NET_Core_GraphQl.Options;
     using Microsoft.AspNetCore.Builder;
@@ -66,25 +73,24 @@ namespace ASP.NET_Core_GraphQl
                 // Adds IOptions<ApplicationOptions> and ApplicationOptions to the services container.
                 .Configure<ApplicationOptions>(configuration)
                 .AddSingleton(x => x.GetRequiredService<IOptions<ApplicationOptions>>().Value)
-                // Adds IOptions<CacheProfileOptions> and CacheProfileOptions to the services container.
-                .Configure<CacheProfileOptions>(configuration.GetSection(nameof(ApplicationOptions.CacheProfiles)))
-                .AddSingleton(x => x.GetRequiredService<IOptions<CacheProfileOptions>>().Value)
                 // Adds IOptions<CompressionOptions> and CompressionOptions to the services container.
                 .Configure<CompressionOptions>(configuration.GetSection(nameof(ApplicationOptions.Compression)))
                 .AddSingleton(x => x.GetRequiredService<IOptions<CompressionOptions>>().Value)
-                // Adds IOptions<KestrelOptions> and KestrelOptions to the services container.
-                .Configure<KestrelOptions>(configuration.GetSection(nameof(ApplicationOptions.Kestrel)))
-                .AddSingleton(x => x.GetRequiredService<IOptions<KestrelOptions>>().Value);
+                // Adds IOptions<ForwardedHeadersOptions> to the services container.
+                .Configure<ForwardedHeadersOptions>(configuration.GetSection(nameof(ApplicationOptions.ForwardedHeaders)))
+                // Adds IOptions<CacheProfileOptions> and CacheProfileOptions to the services container.
+                .Configure<CacheProfileOptions>(configuration.GetSection(nameof(ApplicationOptions.CacheProfiles)))
+                .AddSingleton(x => x.GetRequiredService<IOptions<CacheProfileOptions>>().Value);
 
         /// <summary>
-        /// Adds response compression to enable GZIP compression of responses.
+        /// Adds dynamic response compression to enable GZIP compression of responses. This is turned off for HTTPS
+        /// requests by default to avoid the BREACH security vulnerability.
         /// </summary>
         public static IServiceCollection AddCustomResponseCompression(this IServiceCollection services) =>
             services
                 .AddResponseCompression(
                     options =>
                     {
-
                         // Add additional MIME types (other than the built in defaults) to enable GZIP compression for.
                         var customMimeTypes = services
                             .BuildServiceProvider()
@@ -92,8 +98,7 @@ namespace ASP.NET_Core_GraphQl
                             .MimeTypes ?? Enumerable.Empty<string>();
                         options.MimeTypes = ResponseCompressionDefaults.MimeTypes.Concat(customMimeTypes);
                     })
-                .Configure<GzipCompressionProviderOptions>(
-                    options => options.Level = CompressionLevel.Optimal);
+                .Configure<GzipCompressionProviderOptions>(options => options.Level = CompressionLevel.Optimal);
 
         /// <summary>
         /// Add custom routing settings which determines how URL's are generated.
@@ -166,5 +171,25 @@ namespace ASP.NET_Core_GraphQl
                             .AllowAnyHeader());
                 });
 
+        public static IServiceCollection AddCustomGraphQL(this IServiceCollection services, IHostingEnvironment hostingEnvironment) =>
+            services
+                // Add a way for GraphQL.NET to resolve types.
+                .AddSingleton<IDependencyResolver>(x => new FuncDependencyResolver(type => x.GetRequiredService(type)))
+                // Add a user context from the HttpContext and make it available in field resolvers.
+                .AddGraphQLHttp<GraphQLUserContextBuilder>()
+                // Add GraphQL data loader to reduce the number of calls to our repository.
+                .AddSingleton<IDataLoaderContextAccessor, DataLoaderContextAccessor>()
+                .AddSingleton<DataLoaderDocumentListener>()
+                // Log GraphQL request as debug messages. Turned off in production to avoid logging sensitive information.
+                .AddIf(
+                    hostingEnvironment.IsDevelopment(),
+                    x => x.AddSingleton<IOperationMessageListener, LogMessagesListener>());
+
+        public static IServiceCollection AddGraphQLRelayTypes(this IServiceCollection services) =>
+            services
+                // Add types used for paging.
+                .AddSingleton(typeof(ConnectionType<>))
+                .AddSingleton(typeof(EdgeType<>))
+                .AddSingleton<PageInfoType>();
     }
 }

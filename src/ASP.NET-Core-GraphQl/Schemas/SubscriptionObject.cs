@@ -8,7 +8,12 @@ namespace ASP.NET_Core_GraphQl.Schemas
     using ASP.NET_Core_GraphQl.Repositories;
     using ASP.NET_Core_GraphQl.Types;
 
+    /// <summary>
+    /// All subscriptions defined in the schema used to be notified of changes in data.
+    /// </summary>
     /// <example>
+    /// The is an example subscription to be notified when a human is created.
+    /// <c>
     /// subscription whenHumanCreated {
     ///   humanCreated(homePlanets: ["Earth"])
     ///   {
@@ -16,10 +21,11 @@ namespace ASP.NET_Core_GraphQl.Schemas
     ///     name
     ///   }
     /// }
+    /// </c>
     /// </example>
-    public class RootSubscription : ObjectGraphType<object>
+    public class SubscriptionObject : ObjectGraphType<object>
     {
-        public RootSubscription(IHumanRepository humanRepository)
+        public SubscriptionObject(IHumanRepository humanRepository)
         {
             this.Name = "Subscription";
             this.Description = "The subscription type, represents all updates can be pushed to the client in real time over web sockets.";
@@ -28,10 +34,11 @@ namespace ASP.NET_Core_GraphQl.Schemas
                 new EventStreamFieldType()
                 {
                     Name = "humanCreated",
+                    Description = "Subscribe to human created events.",
                     Arguments = new QueryArguments(
                         new QueryArgument<ListGraphType<StringGraphType>>()
                         {
-                            Name = "homePlanets"
+                            Name = "homePlanets",
                         }),
                     Type = typeof(HumanCreatedEvent),
                     Resolver = new FuncFieldResolver<Human>(context => context.Source as Human),

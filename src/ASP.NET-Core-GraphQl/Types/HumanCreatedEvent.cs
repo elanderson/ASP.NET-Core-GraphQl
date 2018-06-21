@@ -4,7 +4,8 @@ namespace ASP.NET_Core_GraphQl.Types
 
     public class HumanCreatedEvent : HumanObject
     {
-        public HumanCreatedEvent(IHumanRepository humanRepository) : base(humanRepository)
+        public HumanCreatedEvent(IHumanRepository humanRepository)
+            : base(humanRepository)
         {
         }
     }

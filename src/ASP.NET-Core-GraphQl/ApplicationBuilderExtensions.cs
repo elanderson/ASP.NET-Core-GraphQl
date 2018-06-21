@@ -3,9 +3,9 @@ namespace ASP.NET_Core_GraphQl
     using System;
     using System.Linq;
     using Boxed.AspNetCore;
-    using Microsoft.AspNetCore.Builder;
     using ASP.NET_Core_GraphQl.Constants;
     using ASP.NET_Core_GraphQl.Options;
+    using Microsoft.AspNetCore.Builder;
     using Microsoft.Extensions.DependencyInjection;
 
     public static partial class ApplicationBuilderExtensions
@@ -33,8 +33,10 @@ namespace ASP.NET_Core_GraphQl
             var cacheProfile = application
                 .ApplicationServices
                 .GetRequiredService<CacheProfileOptions>()
-                .First(x => string.Equals(x.Key, CacheProfileName.StaticFiles, StringComparison.Ordinal))
-                .Value;
+                .Where(x => string.Equals(x.Key, CacheProfileName.StaticFiles, StringComparison.Ordinal))
+                .Select(x => x.Value)
+                .SingleOrDefault() ??
+                throw new InvalidOperationException("CacheProfiles.StaticFiles section is missing in appsettings.json");
             return application
                 .UseStaticFiles(
                     new StaticFileOptions()
@@ -42,7 +44,7 @@ namespace ASP.NET_Core_GraphQl
                         OnPrepareResponse = context =>
                         {
                             context.Context.ApplyCacheProfile(cacheProfile);
-                        }
+                        },
                     });
         }
     }

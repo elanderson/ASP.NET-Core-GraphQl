@@ -1,20 +1,16 @@
 namespace ASP.NET_Core_GraphQl
 {
     using System;
-    using CorrelationId;
     using Boxed.AspNetCore;
+    using CorrelationId;
     using ASP.NET_Core_GraphQl.Constants;
-    using ASP.NET_Core_GraphQl.Schemas;
-    using GraphQL;
-    using GraphQL.DataLoader;
     using GraphQL.Server.Transports.AspNetCore;
-    using GraphQL.Server.Transports.Subscriptions.Abstractions;
     using GraphQL.Server.Transports.WebSockets;
     using GraphQL.Server.Ui.Playground;
+    using ASP.NET_Core_GraphQl.Schemas;
     using Microsoft.AspNetCore.Builder;
     using Microsoft.AspNetCore.Hosting;
-    using Microsoft.AspNetCore.Http;
-    using Microsoft.AspNetCore.HttpOverrides;
+    using Microsoft.AspNetCore.Mvc;
     using Microsoft.AspNetCore.Mvc.Infrastructure;
     using Microsoft.AspNetCore.Mvc.Routing;
     using Microsoft.Extensions.Configuration;
@@ -53,31 +49,23 @@ namespace ASP.NET_Core_GraphQl
                 .AddCustomOptions(this.configuration)
                 .AddCustomRouting()
                 .AddCustomResponseCompression()
-                // Add a way for GraphQL.NET to resolve types.
-                .AddSingleton<IDependencyResolver>(x => new FuncDependencyResolver(type => x.GetRequiredService(type)))
-                // Add data loader to reduce the number of calls to our repository.
-                .AddSingleton<IDataLoaderContextAccessor, DataLoaderContextAccessor>()
-                .AddSingleton<DataLoaderDocumentListener>()
-                .AddGraphQLHttp<GraphQLUserContextBuilder>()
-                // Log GraphQL request as debug messages. Turned off in production to avoid logging sensitive information.
-                .AddIf(
-                    this.hostingEnvironment.IsDevelopment(),
-                    x => x.AddSingleton<IOperationMessageListener, LogMessagesListener>())
+                .AddHttpContextAccessor()
                 // Add useful interface for accessing the ActionContext.
                 .AddSingleton<IActionContextAccessor, ActionContextAccessor>()
-                // Add useful interface for accessing the HttpContext.
-                .AddSingleton<IHttpContextAccessor, HttpContextAccessor>()
                 // Add useful interface for accessing the IUrlHelper.
                 .AddScoped(x => x
                     .GetRequiredService<IUrlHelperFactory>()
                     .GetUrlHelper(x.GetRequiredService<IActionContextAccessor>().ActionContext))
                 .AddMvcCore()
+                    .SetCompatibilityVersion(CompatibilityVersion.Version_2_1)
                     .AddAuthorization()
                     .AddJsonFormatters()
                     .AddCustomJsonOptions(this.hostingEnvironment)
                     .AddCustomCors()
                     .AddCustomMvcOptions(this.hostingEnvironment)
                 .Services
+                .AddCustomGraphQL(this.hostingEnvironment)
+                .AddGraphQLRelayTypes()
                 .AddProjectRepositories()
                 .AddProjectGraphQLTypes()
                 .AddProjectGraphQLSchemas()
@@ -91,9 +79,8 @@ namespace ASP.NET_Core_GraphQl
             application
                 // Pass a GUID in a X-Correlation-ID HTTP header to set the HttpContext.TraceIdentifier.
                 .UseCorrelationId()
-                .UseForwardedHeaders(new ForwardedHeadersOptions { ForwardedHeaders = ForwardedHeaders.XForwardedProto })
+                .UseForwardedHeaders()
                 .UseResponseCompression()
-                .UseStaticFilesWithCacheControl()
                 // Add the GraphQL playground UI to try out the GraphQL API. Not recommended to be run in production.
                 .UseIf(
                     this.hostingEnvironment.IsDevelopment(),
@@ -102,6 +89,7 @@ namespace ASP.NET_Core_GraphQl
                 .UseIf(
                     this.hostingEnvironment.IsDevelopment(),
                     x => x.UseDeveloperErrorPages())
+                .UseStaticFilesWithCacheControl()
                 .UseWebSockets()
                 .UseGraphQLWebSocket<MainSchema>(new GraphQLWebSocketsOptions())
                 .UseGraphQLHttp<MainSchema>(

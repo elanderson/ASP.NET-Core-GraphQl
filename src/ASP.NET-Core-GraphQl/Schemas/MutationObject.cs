@@ -5,8 +5,12 @@ namespace ASP.NET_Core_GraphQl.Schemas
     using ASP.NET_Core_GraphQl.Repositories;
     using ASP.NET_Core_GraphQl.Types;
 
+    /// <summary>
+    /// All mutations defined in the schema used to modify data.
+    /// </summary>
     /// <example>
-    /// This is an example mutation to create a new human:
+    /// This is an example mutation to create a new human.
+    /// <c>
     /// mutation createHuman($human: HumanInput!) {
     ///   createHuman(human: $human)
     ///   {
@@ -21,21 +25,23 @@ namespace ASP.NET_Core_GraphQl.Schemas
     ///     "homePlanet": "Earth"
     ///   }
     /// }
+    /// </c>
     /// </example>
-    public class RootMutation : ObjectGraphType<object>
+    public class MutationObject : ObjectGraphType<object>
     {
-        public RootMutation(IHumanRepository humanRepository)
+        public MutationObject(IHumanRepository humanRepository)
         {
             this.Name = "Mutation";
             this.Description = "The mutation type, represents all updates we can make to our data.";
 
             this.FieldAsync<HumanObject, Human>(
                 "createHuman",
+                "Create a new human.",
                 arguments: new QueryArguments(
                     new QueryArgument<NonNullGraphType<HumanInputObject>>()
                     {
                         Name = "human",
-                        Description = "The human you want to create."
+                        Description = "The human you want to create.",
                     }),
                 resolve: context =>
                 {

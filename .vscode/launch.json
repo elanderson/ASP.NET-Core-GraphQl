@@ -10,7 +10,7 @@
             "request": "launch",
             "preLaunchTask": "build",
             // If you have changed target frameworks, make sure to update the program path.
-            "program": "${workspaceFolder}/src/ASP.NET-Core-GraphQl/bin/Debug/netcoreapp2.0/ASP.NET-Core-GraphQl.dll",
+            "program": "${workspaceFolder}/src/ASP.NET-Core-GraphQl/bin/Debug/netcoreapp2.1/ASP.NET-Core-GraphQl.dll",
             "args": [],
             "cwd": "${workspaceFolder}/src/ASP.NET-Core-GraphQl",
             "stopAtEntry": false,
